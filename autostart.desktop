@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Encoding=UTF-8
+Name=Yoga Mode Switcher
+Comment=Switches between desktop/tablet mode + orientation
+Exec=yoga-modeswitch.py
+Terminal=false
+Type=Application
+Categories=System;Monitor;GTK;
+Icon=computer-symbolic
+NoDisplay=true
+X-Desktop-File-Install-Version=0.22
