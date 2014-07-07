@@ -15,11 +15,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
+
+from collections import namedtuple
 from functools import partial
 from gi.repository import AppIndicator3 as AppIndicator, GLib, Gtk
 from itertools import chain
+import socket
 import subprocess
 import sys
+from threading import Thread
 
 Indicator = AppIndicator.Indicator
 Category = AppIndicator.IndicatorCategory
@@ -47,6 +52,8 @@ TS_MATRIX = {
                  [0, 0, 1]],
 }
 
+acpi_event = namedtuple('ACPIEvent', ['module', 'source', 'code', 'state'])
+
 
 def run(*args):
     return subprocess.call(list(args))
@@ -63,6 +70,8 @@ class ModeIndicator(object):
                                        Category.HARDWARE)
         self.indicator.set_title(PRGTITLE)
         self.indicator.set_status(Status.ACTIVE)
+        self.socket_thread = Thread(name='acpid', target=self.acpi_tablet_mode)
+        self.socket_thread.start()
 
     def add_radio_item(self, group, label, toggle_callback, **kwargs):
         item = Gtk.RadioMenuItem.new_with_label(group, label)
@@ -125,6 +134,24 @@ class ModeIndicator(object):
     def on_orientation_toggled(self, item):
         if item.get_active():
             self.switch_orientation(item.orientation)
+
+    def acpi_tablet_mode(self):
+        sock = socket.socket(socket.AF_UNIX)
+        try:
+            sock.connect('/var/run/acpid.socket')
+        except socket.error, msg:
+            # TODO error dialog?
+            print('ERROR connecting to acpid: {0}'.format(msg),
+                  file=sys.stderr)
+            raise
+        else:
+            msg = sock.recv(200)
+            while msg:
+                event = acpi_event(*msg.strip().split(' '))
+                if event.module == 'video/tabletmode' and \
+                   event.source == 'TBLT':
+                    self.switch_mode(event.state == '00000001')
+                msg = sock.recv(200)
 
 
 def main(argv):
